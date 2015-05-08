@@ -1,10 +1,12 @@
 (ns cserver.core
-  (:require [cserver.cinitializer :as init])
+  (:require [cserver.cinitializer :refer :all]
+            [cserver.chandler :as chandler])
   (:import (io.netty.bootstrap ServerBootstrap)
            (io.netty.channel.nio NioEventLoopGroup)
-           (io.netty.channel.socket.nio NioServerSocketChannel)
+           (io.netty.channel.socket.nio NioServerSocketChannel NioSocketChannel)
            (cserver ServerInitializer)
-           (io.netty.channel ChannelOption)))
+           (io.netty.channel ChannelOption)
+           (io.netty.handler.codec.http HttpResponseEncoder HttpRequestDecoder)))
 
 (defmacro defgroup [name & args]
   (if args
@@ -45,9 +47,16 @@
 
 ;(def b (server-bootstrap))
 
+(definit initialize (initChannel [^NioSocketChannel socketChannel]
+                                 (let [pipeline (.pipeline socketChannel)]
+                                   (.addLast pipeline nil (HttpRequestDecoder.))
+                                   (.addLast pipeline nil (HttpResponseEncoder.))
+                                   (.addLast pipeline "handler" (chandler/handler))
+                                   (println "连接..."))))
+
 (-> b (group bossGroup workerGroup)
     (channel (NioServerSocketChannel.))
-    (child-handler (init/initialize))
+    (child-handler initialize)
     (option ChannelOption/SO_BACKLOG 128)
     (child-option ChannelOption/SO_KEEPALIVE true))
 
